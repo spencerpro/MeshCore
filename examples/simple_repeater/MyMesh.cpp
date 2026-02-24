@@ -333,7 +333,7 @@ int MyMesh::handleRequest(ClientInfo *sender, uint32_t sender_timestamp, uint8_t
       int results_offset = 0;
       uint8_t results_buffer[130];
       for(int index = 0; index < count && index + offset < neighbours_count; index++){
-        
+
         // stop if we can't fit another entry in results
         int entry_size = pubkey_prefix_length + 4 + 1;
         if(results_offset + entry_size > sizeof(results_buffer)){
@@ -502,16 +502,10 @@ bool MyMesh::filterRecvFloodPacket(mesh::Packet* pkt) {
     recv_pkt_region = NULL;
   }
 
-  // check for packets came through favourite repeaters
-  for (int i = pkt->payload_len - 1; i >= 0; i--) {
-    if (0x01 & pkt->payload[i].flags) {
-      // do normal processing for favorites
-      return false;
-    }
-  }
-
-  // don't talk to strangers
-  return true;
+  // only filter packets that don't come through favourites
+  return std::all_of(pkt->payload, pkt->payload + pkt->payload_len, [](const mesh::Packet::PayloadItem& item) {
+    return (item.flags & 0x01); // if any item has favorite flag, don't filter out
+  });
 }
 
 void MyMesh::onAnonDataRecv(mesh::Packet *packet, const uint8_t *secret, const mesh::Identity &sender,
@@ -976,7 +970,7 @@ void MyMesh::formatRadioStatsReply(char *reply) {
 }
 
 void MyMesh::formatPacketStatsReply(char *reply) {
-  StatsFormatHelper::formatPacketStats(reply, radio_driver, getNumSentFlood(), getNumSentDirect(), 
+  StatsFormatHelper::formatPacketStats(reply, radio_driver, getNumSentFlood(), getNumSentDirect(),
                                        getNumRecvFlood(), getNumRecvDirect());
 }
 
@@ -1158,7 +1152,7 @@ void MyMesh::handleCommand(uint32_t sender_timestamp, char *command, char *reply
     } else if (n >= 3 && strcmp(parts[1], "list") == 0) {
       uint8_t mask = 0;
       bool invert = false;
-      
+
       if (strcmp(parts[2], "allowed") == 0) {
         mask = REGION_DENY_FLOOD;
         invert = false;  // list regions that DON'T have DENY flag
@@ -1169,7 +1163,7 @@ void MyMesh::handleCommand(uint32_t sender_timestamp, char *command, char *reply
         strcpy(reply, "Err - use 'allowed' or 'denied'");
         return;
       }
-      
+
       int len = region_map.exportNamesTo(reply, 160, mask, invert);
       if (len == 0) {
         strcpy(reply, "-none-");
