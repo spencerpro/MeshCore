@@ -501,8 +501,17 @@ bool MyMesh::filterRecvFloodPacket(mesh::Packet* pkt) {
   } else {
     recv_pkt_region = NULL;
   }
-  // do normal processing
-  return false;
+
+  // check for packets came through favourite repeaters
+  for (int i = pkt->payload_len - 1; i >= 0; i--) {
+    if (0x01 & pkt->payload[i].flags) {
+      // do normal processing for favorites
+      return false;
+    }
+  }
+
+  // don't talk to strangers
+  return true;
 }
 
 void MyMesh::onAnonDataRecv(mesh::Packet *packet, const uint8_t *secret, const mesh::Identity &sender,
